@@ -12,7 +12,7 @@ const setupSource = path.resolve(
 const skillSource = path.resolve(__dirname, "../skills/lark/SKILL.md");
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lark-simple-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lark-simple-skill-"));
   const skillsDir = path.join(root, "skills");
   const larkDir = path.join(skillsDir, "lark");
   const setupPath = path.join(larkDir, "scripts", "setup.js");
@@ -62,7 +62,7 @@ test("moves lark-* skills, replaces nested copies, and cleans the lock", (t) => 
     JSON.stringify({
       version: 3,
       skills: {
-        lark: { source: "lark-simple" },
+        lark: { source: "lark-simple-skill" },
         "lark-doc": { source: "lark-cli" },
         "lark-im": { source: "lark-cli" },
         unrelated: { source: "elsewhere" },
@@ -165,7 +165,7 @@ test("rolls back moves and lock changes when metadata generation fails", (t) => 
   const originalLock = JSON.stringify({
     version: 3,
     skills: {
-      lark: { source: "lark-simple" },
+      lark: { source: "lark-simple-skill" },
       "lark-doc": { source: "lark-cli" },
     },
   });
