@@ -1,16 +1,31 @@
-# lark-simple
+# Lark Simple Skill
 
-One installable `lark` skill that consolidates the domain skills installed by
-`lark-cli`.
+One installable `lark` skill for both Lark and Feishu, without dozens of
+top-level domain skills cluttering the agent's skill list.
+
+## About
+
+The official `lark-cli` exposes each API domain as a separate agent skill. That
+is useful context, but installing one CLI currently adds 27 top-level `lark-*`
+skills. This project keeps the complete domain guides while presenting one
+visible `lark` entrypoint instead.
+
+It was inspired by [feedback from Jason Zhu](https://x.com/GoSailGlobal/status/2076871317622567126)
+that installing a single CLI should not flood an agent with twenty or thirty API
+wrapper skills.
+
+Lark is the international brand and Feishu is the mainland China brand. The
+official CLI supports both, but both official skill feeds currently use the
+`lark-*` prefix—Feishu does not install a separate set of `feishu-*` skills.
 
 ## Install
 
 ```bash
-npx skills add andthezhang/lark-simple -g -y
+npx skills add andthezhang/lark-simple-skill -g -y
 ```
 
-The repository is named `lark-simple`, but the installed skill is named `lark`.
-Invoke it through your agent and ask it to set itself up:
+The repository is named `lark-simple-skill`, but the installed skill remains
+`lark`. Invoke it through your agent and ask it to set itself up:
 
 ```text
 $lark setup
