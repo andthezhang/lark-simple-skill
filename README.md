@@ -44,9 +44,10 @@ These are agent skill invocations, not shell commands.
 
 It also removes the moved top-level names from Vercel Skills'
 `.skill-lock.json`, while retaining the `lark` entry and every unrelated entry.
-Running setup again is safe. If `lark-cli update` recreates top-level `lark-*`
-skills, invoke `lark setup` again to replace the nested copies with the updated
-ones.
+On every run, setup regenerates the metadata map in `lark/SKILL.md` from the
+descriptions in the actual nested domain skills. Running setup again is safe.
+If `lark-cli update` recreates or changes top-level `lark-*` skills, invoke
+`lark setup` again to replace the nested copies and refresh the map.
 
 The setup script uses Node's filesystem APIs, so it has the same behavior on
 macOS, Linux, and Windows. No top-level skill is deleted, and it does not install
@@ -58,9 +59,10 @@ layout, set `LARK_SKILLS_DIR` to the directory containing the top-level
 
 ## Routing
 
-The unified [`SKILL.md`](skills/lark/SKILL.md) contains an exact metadata map of
-all current `lark-*` descriptions. For normal Lark/Feishu work, the agent reads
-the shared guide and the smallest matching nested domain guide before using
+The repository's [`SKILL.md`](skills/lark/SKILL.md) contains a small placeholder
+instead of a stale snapshot. Setup replaces it with an exact metadata map of the
+installed `lark-*` descriptions. For normal Lark/Feishu work, the agent reads the
+shared guide and the smallest matching nested domain guide before using
 `lark-cli`.
 
 ## License
