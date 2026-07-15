@@ -1,57 +1,67 @@
-# lark
+# lark-simple
 
-A single Lark/Feishu agent skill with one small cleanup script.
-
-`lark-cli update` can install 20+ separate `lark-*` skills. This skill tells an
-agent to use the guides already embedded in `lark-cli`, then remove those
-separate copies after a successful update.
+One installable `lark` skill that consolidates the domain skills installed by
+`lark-cli`.
 
 ## Install
 
-Once this repository is public:
-
 ```bash
-npx skills add andthezhang/lark-update -g -y
+npx skills add andthezhang/lark-simple -g -y
 ```
 
-The installed skill contains only:
+The repository is named `lark-simple`, but the installed skill is named `lark`.
+Invoke it through your agent and ask it to set itself up:
 
 ```text
-SKILL.md
-scripts/compact-skills.sh
+$lark setup
 ```
 
-## How it works
+or, in agents that use slash commands:
 
-For normal Lark work, the agent reads the current embedded guides:
-
-```bash
-lark-cli skills list
-lark-cli skills read lark-shared
-lark-cli skills read lark-doc
+```text
+/lark setup
 ```
 
-When the agent runs `lark-cli update`, it waits for success and then runs:
+These are agent skill invocations, not shell commands.
 
-```bash
-bash <installed-lark-skill>/scripts/compact-skills.sh
+## What setup does
+
+`lark-cli` installs its domain guides as sibling skills such as `lark-doc`,
+`lark-calendar`, and `lark-im`. Setup moves every sibling whose name starts with
+`lark-` into the unified skill:
+
+```text
+~/.agents/skills/
+├── lark/
+│   ├── SKILL.md
+│   ├── scripts/setup.js
+│   └── skills/
+│       ├── lark-doc/
+│       ├── lark-calendar/
+│       └── ...
+└── unrelated-skill/
 ```
 
-The script removes sibling entries matching `lark-*`, preserves this unified
-skill, and leaves unrelated skills untouched. It discovers the skills directory
-from its own installed location; no hard-coded `~/.agents/skills` path is
-required.
+It also removes the moved top-level names from Vercel Skills'
+`.skill-lock.json`, while retaining the `lark` entry and every unrelated entry.
+Running setup again is safe. If `lark-cli update` recreates top-level `lark-*`
+skills, invoke `lark setup` again to replace the nested copies with the updated
+ones.
 
-For an unusual layout, override discovery explicitly:
+The setup script uses Node's filesystem APIs, so it has the same behavior on
+macOS, Linux, and Windows. No top-level skill is deleted, and it does not install
+a trash utility or shell out to an OS deletion command. During a refresh, the
+prior nested copy is held as a rollback backup and discarded only after its
+updated replacement has moved successfully. For an unusual installation
+layout, set `LARK_SKILLS_DIR` to the directory containing the top-level
+`lark-*` source skills.
 
-```bash
-LARK_SKILLS_DIR=/path/to/skills bash skills/lark/scripts/compact-skills.sh
-```
+## Routing
 
-## Caveat
-
-The cleanup removes sibling entries whose names begin with `lark-`. Do not use
-that prefix for unrelated custom skills in the same directory.
+The unified [`SKILL.md`](skills/lark/SKILL.md) contains an exact metadata map of
+all current `lark-*` descriptions. For normal Lark/Feishu work, the agent reads
+the shared guide and the smallest matching nested domain guide before using
+`lark-cli`.
 
 ## License
 
