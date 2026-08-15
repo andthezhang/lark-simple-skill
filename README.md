@@ -51,16 +51,19 @@ These are agent skill invocations, not shell commands.
 │   ├── SKILL.md
 │   ├── scripts/setup.js
 │   └── skills/
-│       ├── lark-doc/
-│       ├── lark-calendar/
+│       ├── lark-doc/GUIDE.md
+│       ├── lark-calendar/GUIDE.md
 │       └── ...
 └── unrelated-skill/
 ```
 
-It also removes the moved top-level names from Vercel Skills'
-`.skill-lock.json`, while retaining the `lark` entry and every unrelated entry.
+It renames every `SKILL.md` inside the gathered domain folders to `GUIDE.md`
+and updates links between those files. This prevents recursive skill discovery
+from exposing the nested domains. It also removes the moved top-level names
+from Vercel Skills' `.skill-lock.json`, while retaining the `lark` entry and
+every unrelated entry.
 On every run, setup regenerates the metadata map in `lark/SKILL.md` from the
-descriptions in the actual nested domain skills. Running setup again is safe.
+descriptions in the actual nested domain guides. Running setup again is safe.
 If `lark-cli update` recreates or changes top-level `lark-*` skills, invoke
 `lark setup` again to replace the nested copies and refresh the map.
 

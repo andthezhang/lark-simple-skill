@@ -63,18 +63,113 @@ function extractRawDescription(frontmatterPath) {
   return description;
 }
 
-function nestedSkillNames() {
+function filesUnder(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+    return entry.isDirectory() ? filesUnder(entryPath) : [entryPath];
+  });
+}
+
+function markdownPath(filePath) {
+  return filePath.split(path.sep).join("/");
+}
+
+function nestedGuideNames() {
   return fs
     .readdirSync(nestedDir)
     .filter((name) => {
       if (!name.startsWith("lark-")) return false;
-      return exists(path.join(nestedDir, name, "SKILL.md"));
+      return exists(path.join(nestedDir, name, "GUIDE.md"));
     })
     .sort();
 }
 
+function nestedDomainNames() {
+  return fs
+    .readdirSync(nestedDir)
+    .filter((name) => {
+      if (!name.startsWith("lark-")) return false;
+      return ["GUIDE.md", "SKILL.md"].some((fileName) =>
+        exists(path.join(nestedDir, name, fileName)),
+      );
+    })
+    .sort();
+}
+
+function restoreConvertedGuides(conversion) {
+  for (const { skillPath, guidePath } of [...conversion.renames].reverse()) {
+    if (exists(guidePath) && !exists(skillPath)) {
+      fs.renameSync(guidePath, skillPath);
+    }
+  }
+  for (const { filePath, original } of conversion.changedFiles) {
+    writeTextAtomically(filePath, original);
+  }
+}
+
+function convertNestedSkillsToGuides() {
+  const skillFiles = filesUnder(nestedDir).filter(
+    (filePath) => path.basename(filePath) === "SKILL.md",
+  );
+  const renames = skillFiles.map((skillPath) => ({
+    skillPath,
+    guidePath: path.join(path.dirname(skillPath), "GUIDE.md"),
+  }));
+
+  for (const { guidePath } of renames) {
+    if (exists(guidePath)) {
+      throw new Error(`refusing to overwrite existing guide: ${guidePath}`);
+    }
+  }
+
+  const changedFiles = [];
+  const completedRenames = [];
+  try {
+    for (const filePath of filesUnder(nestedDir).filter(
+      (candidate) => path.extname(candidate) === ".md",
+    )) {
+      const original = fs.readFileSync(filePath, "utf8");
+      let updated = original;
+      for (const { skillPath, guidePath } of renames) {
+        const skillRelative = markdownPath(
+          path.relative(path.dirname(filePath), skillPath),
+        );
+        const guideRelative = markdownPath(
+          path.relative(path.dirname(filePath), guidePath),
+        );
+        if (skillRelative.includes("/")) {
+          updated = updated.replaceAll(skillRelative, guideRelative);
+        }
+
+        const directoryName = path.basename(path.dirname(skillPath));
+        updated = updated.replaceAll(
+          `${directoryName}/SKILL.md`,
+          `${directoryName}/GUIDE.md`,
+        );
+      }
+      if (updated !== original) {
+        writeTextAtomically(filePath, updated);
+        changedFiles.push({ filePath, original });
+      }
+    }
+
+    for (const rename of renames) {
+      fs.renameSync(rename.skillPath, rename.guidePath);
+      completedRenames.push(rename);
+    }
+  } catch (error) {
+    restoreConvertedGuides({
+      renames: completedRenames,
+      changedFiles,
+    });
+    throw error;
+  }
+
+  return { renames, changedFiles };
+}
+
 function buildMetadataSection() {
-  const names = nestedSkillNames();
+  const names = nestedGuideNames();
   if (names.length === 0) {
     return {
       count: 0,
@@ -83,11 +178,11 @@ function buildMetadataSection() {
   }
 
   const entries = names.map((name) => {
-    const frontmatterPath = path.join(nestedDir, name, "SKILL.md");
+    const frontmatterPath = path.join(nestedDir, name, "GUIDE.md");
     const description = extractRawDescription(frontmatterPath)
       .map((line) => `  ${line}`)
       .join("\n");
-    return `${name}:\n  path: skills/${name}/SKILL.md\n${description}`;
+    return `${name}:\n  path: skills/${name}/GUIDE.md\n${description}`;
   });
 
   return {
@@ -135,7 +230,7 @@ if (process.argv.includes("--dry-run")) {
   }
   const knownNames = new Set([
     ...candidates,
-    ...(exists(nestedDir) ? nestedSkillNames() : []),
+    ...(exists(nestedDir) ? nestedDomainNames() : []),
   ]);
   console.log(
     `Would move ${candidates.length} lark-* skill(s) and regenerate metadata for ${knownNames.size} skill(s).`,
@@ -155,6 +250,7 @@ let lockChanged = false;
 const originalSkillText = fs.readFileSync(skillPath, "utf8");
 let skillChanged = false;
 let metadataCount = 0;
+let conversion;
 
 try {
   for (const name of candidates) {
@@ -179,6 +275,8 @@ try {
     moved.push({ source, destination, backup });
     console.log(`Moved ${name} into lark/skills/.`);
   }
+
+  conversion = convertNestedSkillsToGuides();
 
   if (exists(lockPath)) {
     originalLockText = fs.readFileSync(lockPath, "utf8");
@@ -218,6 +316,7 @@ try {
   if (lockChanged && originalLockText !== undefined) {
     fs.writeFileSync(lockPath, originalLockText, "utf8");
   }
+  if (conversion) restoreConvertedGuides(conversion);
 
   for (const item of moved.reverse()) {
     if (exists(item.destination) && !exists(item.source)) {
