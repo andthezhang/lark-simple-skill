@@ -34,6 +34,13 @@ function writeSkill(directory, name, descriptionYaml) {
   );
 }
 
+function writeGuide(directory, name, descriptionYaml) {
+  write(
+    path.join(directory, "GUIDE.md"),
+    `---\nname: ${name}\ndescription: ${descriptionYaml}\n---\n\n# ${name}\n`,
+  );
+}
+
 function runSetup(setupPath, env = {}) {
   return spawnSync(process.execPath, [setupPath], {
     encoding: "utf8",
@@ -50,6 +57,20 @@ test("moves lark-* skills, replaces nested copies, and cleans the lock", (t) => 
     path.join(skillsDir, "lark-im"),
     "lark-im",
     ">\n  Instant messages\n  and chat.",
+  );
+  write(
+    path.join(skillsDir, "lark-doc", "references", "links.md"),
+    [
+      "[this guide](../SKILL.md)",
+      "[messages](../../lark-im/SKILL.md)",
+      "[embedded](embedded/SKILL.md)",
+      "[external](../../plugin-guide/SKILL.md)",
+    ].join("\n"),
+  );
+  writeSkill(
+    path.join(skillsDir, "lark-doc", "references", "embedded"),
+    "embedded",
+    '"Embedded guide"',
   );
   write(path.join(skillsDir, "unrelated", "keep.txt"), "keep");
   writeSkill(
@@ -76,11 +97,53 @@ test("moves lark-* skills, replaces nested copies, and cleans the lock", (t) => 
   assert.equal(fs.existsSync(path.join(skillsDir, "lark-doc")), false);
   assert.equal(fs.existsSync(path.join(skillsDir, "lark-im")), false);
   const nestedDoc = fs.readFileSync(
-    path.join(larkDir, "skills", "lark-doc", "SKILL.md"),
+    path.join(larkDir, "skills", "lark-doc", "GUIDE.md"),
     "utf8",
   );
   assert.match(nestedDoc, /description: "New docs"/);
   assert.doesNotMatch(nestedDoc, /Old docs/);
+  assert.equal(
+    fs.existsSync(path.join(larkDir, "skills", "lark-doc", "SKILL.md")),
+    false,
+  );
+  assert.equal(
+    fs.readFileSync(
+      path.join(larkDir, "skills", "lark-doc", "references", "links.md"),
+      "utf8",
+    ),
+    [
+      "[this guide](../GUIDE.md)",
+      "[messages](../../lark-im/GUIDE.md)",
+      "[embedded](embedded/GUIDE.md)",
+      "[external](../../plugin-guide/SKILL.md)",
+    ].join("\n"),
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        larkDir,
+        "skills",
+        "lark-doc",
+        "references",
+        "embedded",
+        "GUIDE.md",
+      ),
+    ),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        larkDir,
+        "skills",
+        "lark-doc",
+        "references",
+        "embedded",
+        "SKILL.md",
+      ),
+    ),
+    false,
+  );
   assert.equal(
     fs.readFileSync(path.join(skillsDir, "unrelated", "keep.txt"), "utf8"),
     "keep",
@@ -94,15 +157,15 @@ test("moves lark-* skills, replaces nested copies, and cleans the lock", (t) => 
   const generated = fs.readFileSync(path.join(larkDir, "SKILL.md"), "utf8");
   assert.match(
     generated,
-    /lark-doc:\n  path: skills\/lark-doc\/SKILL\.md\n  description: "New docs"/,
+    /lark-doc:\n  path: skills\/lark-doc\/GUIDE\.md\n  description: "New docs"/,
   );
   assert.match(
     generated,
-    /lark-im:\n  path: skills\/lark-im\/SKILL\.md\n  description: >\n    Instant messages\n    and chat\./,
+    /lark-im:\n  path: skills\/lark-im\/GUIDE\.md\n  description: >\n    Instant messages\n    and chat\./,
   );
   assert.doesNotMatch(generated, /Run `\$lark setup`/);
 
-  writeSkill(
+  writeGuide(
     path.join(larkDir, "skills", "lark-doc"),
     "lark-doc",
     '"Updated docs"',
@@ -121,6 +184,11 @@ test("rolls back moves and replacements when lock processing fails", (t) => {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 
   writeSkill(path.join(skillsDir, "lark-doc"), "lark-doc", '"New docs"');
+  const originalLinks = "[this guide](../SKILL.md)";
+  write(
+    path.join(skillsDir, "lark-doc", "references", "links.md"),
+    originalLinks,
+  );
   writeSkill(
     path.join(larkDir, "skills", "lark-doc"),
     "lark-doc",
@@ -135,6 +203,17 @@ test("rolls back moves and replacements when lock processing fails", (t) => {
   assert.match(
     fs.readFileSync(path.join(skillsDir, "lark-doc", "SKILL.md"), "utf8"),
     /New docs/,
+  );
+  assert.equal(
+    fs.existsSync(path.join(skillsDir, "lark-doc", "GUIDE.md")),
+    false,
+  );
+  assert.equal(
+    fs.readFileSync(
+      path.join(skillsDir, "lark-doc", "references", "links.md"),
+      "utf8",
+    ),
+    originalLinks,
   );
   assert.match(
     fs.readFileSync(
@@ -209,6 +288,18 @@ test("supports a separate source directory through LARK_SKILLS_DIR", (t) => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     fs.readFileSync(path.join(larkDir, "SKILL.md"), "utf8"),
-    /lark-calendar:\n  path: skills\/lark-calendar\/SKILL\.md\n  description: "Calendar"/,
+    /lark-calendar:\n  path: skills\/lark-calendar\/GUIDE\.md\n  description: "Calendar"/,
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(larkDir, "skills", "lark-calendar", "GUIDE.md"),
+    ),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(larkDir, "skills", "lark-calendar", "SKILL.md"),
+    ),
+    false,
   );
 });
